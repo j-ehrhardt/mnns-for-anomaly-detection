@@ -217,45 +217,21 @@ class pipeline():
             model = m.MonolithAE(hparam=self.hparam, in_ch=in_ch, in_len=in_len)
         elif "MonolithVAE" in self.hparam["MODEL"]:
             model = m.MonolithVAE(hparam=self.hparam, in_ch=in_ch, in_len=in_len)
-        elif "MonolithRNN" in self.hparam["MODEL"]:
-            model = m.MonolithRNN(hparam=self.hparam, in_ch=in_ch, in_len=in_len)
-        elif "MonolithLSTM" in self.hparam["MODEL"]:
-            model = m.MonolithLSTM(hparam=self.hparam, in_ch=in_ch, in_len=in_len)
-        elif "MonolithGRU" in self.hparam["MODEL"]:
-            model = m.MonolithGRU(hparam=self.hparam, in_ch=in_ch, in_len=in_len)
         # Modular Types -  Type 0
         elif "Modular0AE" in self.hparam["MODEL"]:
             model = m.Modular0AE(hparam=self.hparam, in_ch=in_ch, in_len=in_len)
         elif "Modular0VAE" in self.hparam["MODEL"]:
             model = m.Modular0VAE(hparam=self.hparam, in_ch=in_ch, in_len=in_len)
-        elif "Modular0RNN" in self.hparam["MODEL"]:
-            model = m.Modular0RNN(hparam=self.hparam, in_ch=in_ch, in_len=in_len)
-        elif "Modular0LSTM" in self.hparam["MODEL"]:
-            model = m.Modular0LSTM(hparam=self.hparam, in_ch=in_ch, in_len=in_len)
-        elif "Modular0GRU" in self.hparam["MODEL"]:
-            model = m.Modular0GRU(hparam=self.hparam, in_ch=in_ch, in_len=in_len)
         # Modular Types - Type 1
         elif "Modular1AE" in self.hparam["MODEL"]:
             model = m.Modular1AE(hparam=self.hparam, in_ch=in_ch, in_len=in_len)
         elif "Modular1VAE" in self.hparam["MODEL"]:
             model = m.Modular1VAE(hparam=self.hparam, in_ch=in_ch, in_len=in_len)
-        elif "Modular1RNN" in self.hparam["MODEL"]:
-            model = m.Modular1RNN(hparam=self.hparam, in_ch=in_ch, in_len=in_len)
-        elif "Modular1LSTM" in self.hparam["MODEL"]:
-            model = m.Modular1LSTM(hparam=self.hparam, in_ch=in_ch, in_len=in_len)
-        elif "Modular1GRU" in self.hparam["MODEL"]:
-            model = m.Modular1GRU(hparam=self.hparam, in_ch=in_ch, in_len=in_len)
         # Modular Types - Type 2
         elif "Modular2AE" in self.hparam["MODEL"]:
             model = m.Modular2AE(hparam=self.hparam, in_ch=in_ch, in_len=in_len)
         elif "Modular2VAE" in self.hparam["MODEL"]:
             model = m.Modular2VAE(hparam=self.hparam, in_ch=in_ch, in_len=in_len)
-        elif "Modular2RNN" in self.hparam["MODEL"]:
-            model = m.Modular2RNN(hparam=self.hparam, in_ch=in_ch, in_len=in_len)
-        elif "Modular2LSTM" in self.hparam["MODEL"]:
-            model = m.Modular2LSTM(hparam=self.hparam, in_ch=in_ch, in_len=in_len)
-        elif "Modular2GRU" in self.hparam["MODEL"]:
-            model = m.Modular2GRU(hparam=self.hparam, in_ch=in_ch, in_len=in_len)
         return model
 
     def get_dims(self, dl):
