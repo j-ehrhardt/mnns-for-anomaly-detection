@@ -10,8 +10,8 @@ import plotly.express as px
 from sklearn.metrics import precision_score, recall_score, f1_score, precision_recall_fscore_support
 
 class ImportResults():
-    def __init__(self, path, model_list, ds_list, anomaly_list):
-        glob_res = self.results_to_dict(path, model_list, ds_list)
+    def __init__(self, path, model_list, anomaly_list):
+        glob_res = self.results_to_dict(path, model_list)
         self.ind_res, self.mean_res = self.ind_res_mean_res(glob_res)
         self.glob_res = self.global_res(glob_res)
 
@@ -26,26 +26,25 @@ class ImportResults():
         else:
             return isinstance(data, (float, int)) and math.isnan(data)
 
-    def results_to_dict(self, path, model_list, ds_list):
+    def results_to_dict(self, path, model_list):
         """
         loading all results.json files into a global dictionary
         """
         results = {}
 
-        for ds in ds_list:
-            for model in model_list:
-                try:
-                    res_dir_path = path + model + ds + "/"
-                    dir_list = [d for d in os.listdir(res_dir_path) if os.path.isdir(os.path.join(res_dir_path, d))]
+        for model in model_list:
+            try:
+                res_dir_path = path + model + "/"
+                dir_list = [d for d in os.listdir(res_dir_path) if os.path.isdir(os.path.join(res_dir_path, d))]
 
-                    for dir_ in dir_list:
-                        try:
-                            res = self.load_json(res_dir_path + "/" + dir_)
-                            results[dir_] = res
-                        except:
-                            print(f"no results for {dir_}")
-                except:
-                    print(f"no results for {model}")
+                for dir_ in dir_list:
+                    try:
+                        res = self.load_json(res_dir_path + "/" + dir_)
+                        results[dir_] = res
+                    except:
+                        print(f"no results for {dir_}")
+            except:
+                print(f"no results for {model}")
 
         return results
 
@@ -58,19 +57,25 @@ class ImportResults():
 
         for key in results_dict:
             results_ind[key], results_mean[key] = {}, {}
-            for case in results_dict[key]["eval_results"]:
-                if "_ind" in case and not self.contains_nan(results_dict[key]["eval_results"][case]):
-                    results_ind[key][case] = results_dict[key]["eval_results"][case]
-                elif "_mean" in case and not self.contains_nan(results_dict[key]["eval_results"][case]):
-                    results_mean[key][case] = results_dict[key]["eval_results"][case]
-                else:
-                    continue
+            try:
+                for case in results_dict[key]["eval_results"]:
+                    if "_ind" in case and not self.contains_nan(results_dict[key]["eval_results"][case]):
+                        results_ind[key][case] = results_dict[key]["eval_results"][case]
+                    elif "_mean" in case and not self.contains_nan(results_dict[key]["eval_results"][case]):
+                        results_mean[key][case] = results_dict[key]["eval_results"][case]
+                    else:
+                        continue
+            except:
+                print(f"no individual eval results for {key}")
         return results_ind, results_mean
 
     def global_res(self, results_dict):
         global_dir = {}
         for key in results_dict:
-            global_dir[key] = results_dict[key]["eval_results"]
+            try:
+                global_dir[key] = results_dict[key]["eval_results"]
+            except:
+                print(f"no global eval results for {key}")
         return global_dir
 
 
@@ -168,65 +173,72 @@ class H1():
     For H1, we evaluate the performances of the different, employed models in reconstructing multiple subsystems.
     We use L2 loss for evaluating the performances.
     """
-    def __init__(self, results_dict, ds_list, model_list):
-        aggr_dict = self.aggregate_results_dict(results_dict, model_list, ds_list)
-        stats_dict = self.calc_statistics(aggr_dict, ds_list)
+    def __init__(self, results_dict):
+        model_list = self.get_model_list(results_dict)
+        aggr_dict = self.aggregate_results_dict(results_dict, model_list)
+        stats_dict = self.calc_statistics(aggr_dict)
         self.df_joints = self.to_df(stats_dict, modus="per_joint")
         self.df_files  = self.to_df(stats_dict, modus="per_file")
 
-    def aggregate_results_dict(self, results_dict, model_list, ds_list):
+    def get_model_list(self, results_dict):
+        models = set()
+        for key in results_dict.keys():
+            main_type = key.rsplit("_")[0]
+            models.add(main_type)
+        return list(models)
+
+    def aggregate_results_dict(self, results_dict, model_list):
         """
         concatenating all runs over different seeds into an aggregated dict.
         """
         aggr_dict = {}
 
-        for ds in ds_list:
-            for model in model_list:
-                aggr_dict[model + ds] = {}
-                for key in results_dict:
-                    if model + ds in key:
-                        normal_ind = results_dict[key]["normal_ind"]
-                        normal_mean = results_dict[key]["normal_mean"]
+        for model in model_list:
+            aggr_dict[model] = {}
+            for key in results_dict:
+                if model in key:
+                    normal_ind = results_dict[key]["normal_ind"]
+                    normal_mean = results_dict[key]["normal_mean"]
 
-                        nan_indices_ind = [(i, j) for i, sublist in enumerate(normal_ind) for j, value in enumerate(sublist) if math.isnan(value)]
-                        nan_indices_mean = [index for index, value in enumerate(normal_mean) if math.isnan(value)]
+                    nan_indices_ind = [(i, j) for i, sublist in enumerate(normal_ind) for j, value in enumerate(sublist) if math.isnan(value)]
+                    nan_indices_mean = [index for index, value in enumerate(normal_mean) if math.isnan(value)]
 
-                        if nan_indices_ind or nan_indices_mean:
-                            continue
+                    if nan_indices_ind or nan_indices_mean:
+                        continue
 
-                        if "normal_ind" not in aggr_dict[model + ds]:
-                            aggr_dict[model + ds]["normal_ind"] = normal_ind
-                            aggr_dict[model + ds]["normal_mean"] = normal_mean
-                        else:
-                            aggr_dict[model + ds]["normal_ind"].extend(normal_ind)
-                            aggr_dict[model + ds]["normal_mean"].extend(normal_mean)
+                    if "normal_ind" not in aggr_dict[model]:
+                        aggr_dict[model]["normal_ind"] = normal_ind
+                        aggr_dict[model]["normal_mean"] = normal_mean
+                    else:
+                        aggr_dict[model]["normal_ind"].extend(normal_ind)
+                        aggr_dict[model]["normal_mean"].extend(normal_mean)
         return aggr_dict
 
-    def calc_statistics(self, aggr_dict, ds_list):
+    def calc_statistics(self, aggr_dict):
         """
         calculating mean, std, and var for reconstruction losses over individual joints and files + over files.
         """
         stat_dict = {}
 
-        for ds in ds_list:
-            for model in aggr_dict:
-                if ds in model:
-                    stat_dict[model] = {}
+        for model in aggr_dict:
+            try:
+                stat_dict[model] = {}
 
-                    L2_per_joint_per_file = np.array(aggr_dict[model]["normal_ind"])
-                    if ds == "_e": L2_per_joint_per_file = np.delete(L2_per_joint_per_file, 0, axis=1)
-                    L2_per_file = np.array(aggr_dict[model]["normal_mean"])
+                L2_per_joint_per_file = np.array(aggr_dict[model]["normal_ind"])
+                L2_per_file = np.array(aggr_dict[model]["normal_mean"])
 
-                    mean_per_joint = np.mean(L2_per_joint_per_file, axis=0)
-                    std_per_joint  = np.std(L2_per_joint_per_file, axis=0)
-                    var_per_joint  = np.var(L2_per_joint_per_file, axis=0)
+                mean_per_joint = np.mean(L2_per_joint_per_file, axis=0)
+                std_per_joint  = np.std(L2_per_joint_per_file, axis=0)
+                var_per_joint  = np.var(L2_per_joint_per_file, axis=0)
 
-                    mean_per_file = np.mean(L2_per_file)
-                    std_per_file  = np.std(L2_per_file)
-                    var_per_file  = np.std(L2_per_file)
+                mean_per_file = np.mean(L2_per_file)
+                std_per_file  = np.std(L2_per_file)
+                var_per_file  = np.std(L2_per_file)
 
-                    stat_dict[model] = {"per_joint": {"mean": mean_per_joint, "std": std_per_joint, "var": var_per_joint},
-                                        "per_file":{"mean": mean_per_file, "std": std_per_file, "var": var_per_file}}
+                stat_dict[model] = {"per_joint": {"mean": mean_per_joint, "std": std_per_joint, "var": var_per_joint},
+                                    "per_file":{"mean": mean_per_file, "std": std_per_file, "var": var_per_file}}
+            except:
+                print(f"no results for {model}")
         return stat_dict
 
     def to_df(self, stats_dict, modus="per_file"):
@@ -237,23 +249,14 @@ class H1():
 
         if modus == "per_joint":
             for model in stats_dict:
-                if "_e" in model:
-                    for elem in range(len(stats_dict[model]["per_joint"]["mean"])):
-                        df.at[model[:-2], "$ds_e j_" + str(elem) + "$ mean"] = stats_dict[model]["per_joint"]["mean"][elem]
-                        df.at[model[:-2], "$ds_e j_" + str(elem) + "$ var"]  = stats_dict[model]["per_joint"]["var"][elem]
-                elif "_p" in model:
-                    for elem in range(len(stats_dict[model]["per_joint"]["mean"])):
-                        df.at[model[:-2], "$ds_m j_" + str(elem) + "$ mean"] = stats_dict[model]["per_joint"]["mean"][elem]
-                        df.at[model[:-2], "$ds_m j_" + str(elem) + "$ var"]  = stats_dict[model]["per_joint"]["var"][elem]
+                for elem in range(len(stats_dict[model]["per_joint"]["mean"])):
+                    df.at[model, "j_" + str(elem) + " mean"] = stats_dict[model]["per_joint"]["mean"][elem]
+                    df.at[model, "j_" + str(elem) + " var"]  = stats_dict[model]["per_joint"]["var"][elem]
 
         if modus == "per_file":
             for model in stats_dict:
-                if "_e" in model:
-                    df.at[model[:-2], "$ds_e$"] = stats_dict[model]["per_file"]["mean"]
-                    df.at[model[:-2], "$ds_e var$"] = stats_dict[model]["per_file"]["var"]
-                elif "_p" in model:
-                    df.at[model[:-2], "$ds_m$"] = stats_dict[model]["per_file"]["mean"]
-                    df.at[model[:-2], "$ds_m var$"] = stats_dict[model]["per_file"]["var"]
+                df.at[model, "mean"] = stats_dict[model]["per_file"]["mean"]
+                df.at[model, "var"] = stats_dict[model]["per_file"]["var"]
         return df
 
 
@@ -263,31 +266,46 @@ class H2():
     An anomaly is labeled as anomaly, when the threshold is 2*\sigma of the normal mean of the loss-value.
     Evaluation metrics are sensitivity, specificity, and F1.
     """
-    def __init__(self, results_dict, model_list, ds_list, anomaly_list):
-        aggr_dict = self.aggregate_results(results_dict, model_list, ds_list, anomaly_list)
+    def __init__(self, results_dict, anomaly_list):
+        model_list = self.get_model_list(results_dict)
+        aggr_dict = self.aggregate_results(results_dict, model_list, anomaly_list)
         metrics_dict = self.calc_metrics(aggr_dict)
         anom_dict = self.label_anomalies(aggr_dict, metrics_dict)
-        stats_dict = self.calc_statistics_global(anom_dict)
-        self.df_files = self.to_df(stats_dict)
+        stats_dict_model = self.calc_statistics_global(anom_dict)       # calc all statistics model-wise
+        stats_dict_anom = self.calc_statistics_per_anomaly(anom_dict)   # calc all statistics anomaly-wise per model
+        self.df_model = self.to_df(stats_dict_model, mode="model")
+        self.df_anomaly = self.to_df(stats_dict_anom, mode="anomaly")
 
-    def aggregate_results(self, results_dict, model_list, ds_list, anomaly_list, seed=42):
+    def get_model_list(self, results_dict):
+        models = set()
+        for key in results_dict.keys():
+            main_type = key.rsplit("_")[0]
+            models.add(main_type)
+        return list(models)
+
+    def aggregate_results(self, results_dict, model_list, anomaly_list):
         aggr_dict = {}
-        for ds in ds_list:
-            for model in model_list:
-                aggr_dict[model + ds] = {}
-                for key in results_dict:
-                    if model + ds in key and str(seed) in key:
-                        for anomaly in anomaly_list:
 
-                            l2_per_joint = results_dict[key][anomaly + "_ind"]  # for individual channels
-                            nan_indices_ind = [(i, j) for i, sublist in enumerate(l2_per_joint) for j, value in enumerate(sublist) if math.isnan(value)]
-                            if nan_indices_ind:
-                                continue
+        for model in model_list:
+            aggr_dict[model] = {}
+            for key in results_dict:
+                if model in key:
+                    for anom in anomaly_list:
+                        entry_ind = results_dict[key][anom + "_ind"]
+                        #entry_mean = results_dict[key][anom + "_mean"]
 
-                            if anomaly not in aggr_dict[model + ds]:
-                                aggr_dict[model + ds][anomaly] = l2_per_joint
-                            else:
-                                aggr_dict[model + ds][anomaly].extend(l2_per_joint)
+                        nan_indices_ind = [(i, j) for i, sublist in enumerate(entry_ind) for j, value in enumerate(sublist) if math.isnan(value)]
+                        #nan_indices_mean = [index for index, value in enumerate(entry_mean) if math.isnan(value)]
+
+                        if nan_indices_ind:# or nan_indices_mean:
+                            continue
+
+                        if anom not in aggr_dict[model]:
+                            aggr_dict[model][anom] = entry_ind
+                            #aggr_dict[model][anom + "_mean"] = entry_mean
+                        else:
+                            aggr_dict[model][anom].extend(entry_ind)
+                            #aggr_dict[model][anom + "_mean"].extend(entry_mean)
         return aggr_dict
 
     def calc_metrics(self, aggr_dict):
@@ -349,8 +367,7 @@ class H2():
 
                 m_all = Metrics(gt_all, pred_all)
 
-                stats_dict[model][anomaly]["per_file"] = {"sensitivity": m_all.sensitivity, "specificity": m_all.specificity, "precision": m_all.precision,
-                                                          "recall": m_all.recall, "accurracy": m_all.accuracy, "f1_score": m_all.f1_score}
+                stats_dict[model][anomaly] = {"sensitivity": m_all.sensitivity, "specificity": m_all.specificity, "precision": m_all.precision,"recall": m_all.recall, "accurracy": m_all.accuracy, "f1_score": m_all.f1_score}
         return stats_dict
 
     def calc_statistics_global(self, anom_dict):
@@ -358,8 +375,9 @@ class H2():
 
         for model in anom_dict:
             glob_pred_all, glob_gt_all = np.array([]), np.array([])
-            stats_dict[model] = {"per_joint":{}, "per_file":{}}
+            stats_dict[model] = {}
             for anomaly in anom_dict[model]:
+
                 pred_all = np.array(anom_dict[model][anomaly]["per_file"])
 
                 if anomaly == "normal":
@@ -370,148 +388,176 @@ class H2():
                 glob_pred_all, glob_gt_all = np.concatenate((glob_pred_all, pred_all)), np.concatenate((glob_gt_all, gt_all))
 
             m_all = Metrics(glob_gt_all, glob_pred_all)
-            stats_dict[model]["per_file"] = {"sensitivity": m_all.sensitivity, "specificity": m_all.specificity, "precision": m_all.precision,
-                                            "recall": m_all.recall, "accurracy": m_all.accuracy, "f1_score": m_all.f1_score}
+            stats_dict[model] = {"sensitivity": m_all.sensitivity, "specificity": m_all.specificity, "precision": m_all.precision,
+                                        "recall": m_all.recall, "accurracy": m_all.accuracy, "f1_score": m_all.f1_score}
         return stats_dict
 
-    def to_df(self, stats_dict, modus="per_file"):
+    def to_df(self, stats_dict, mode="model"):
         df = pd.DataFrame()
 
-        if modus == "per_joint":
+        if mode == "anomaly":
             for model in stats_dict:
-                if "_e" in model:
-                    for elem in range(len(stats_dict[model]["per_joint"])):
-                        df.at[model[:-2], "sensitivity_j" + str(elem) + "_e"] = stats_dict[model]["per_joint"][elem]["sensitivity"]
-                        df.at[model[:-2], "specificity_j" + str(elem) + "_e"] = stats_dict[model]["per_joint"][elem]["specificity"]
-                        df.at[model[:-2], "f1_score_j"    + str(elem) + "_e"] = stats_dict[model]["per_joint"][elem]["f1_score"]
-                elif "_p" in model:
-                    for elem in range(len(stats_dict[model]["per_joint"]["mean"])):
-                        df.at[model[:-2], "sensitivity_j" + str(elem) + "_m"] = stats_dict[model]["per_joint"][elem]["sensitivity"]
-                        df.at[model[:-2], "specificity_j" + str(elem) + "_m"] = stats_dict[model]["per_joint"][elem]["specificity"]
-                        df.at[model[:-2], "f1_score_j"    + str(elem) + "_m"] = stats_dict[model]["per_joint"][elem]["f1_score"]
+                for anom in stats_dict[model]:
+                    df.at[anom, model + " sensitivity"] = stats_dict[model][anom]["sensitivity"]
+                    df.at[anom, model + " specificity"] = stats_dict[model][anom]["specificity"]
+                    df.at[anom, model + " f1_score"] = stats_dict[model][anom]["f1_score"]
 
-        if modus == "per_file":
+        if mode == "model":
             for model in stats_dict:
-                if "_e" in model:
-                    df.at[model[:-2], "sensitivity" + "_e"] = stats_dict[model]["per_file"]["sensitivity"]
-                    df.at[model[:-2], "specificity" + "_e"] = stats_dict[model]["per_file"]["specificity"]
-                    df.at[model[:-2], "f1_score" + "_e"]    = stats_dict[model]["per_file"]["f1_score"]
-                elif "_p" in model:
-                    df.at[model[:-2], "sensitivity" + "_m"] = stats_dict[model]["per_file"]["sensitivity"]
-                    df.at[model[:-2], "specificity" + "_m"] = stats_dict[model]["per_file"]["specificity"]
-                    df.at[model[:-2], "f1_score" + "_m"]    = stats_dict[model]["per_file"]["f1_score"]
+                df.at[model, "sensitivity"] = stats_dict[model]["sensitivity"]
+                df.at[model, "specificity"] = stats_dict[model]["specificity"]
+                df.at[model, "f1_score"]    = stats_dict[model]["f1_score"]
         return df
 
 
 class H3():
-    def __init__(self, results_dict, model_list, ds_list, anomaly_list):
-        anom_dict = self.label_anomalies(results_dict, anomaly_list)
-        metrics_dict = self.calc_metrics(anom_dict)
-        self.df = self.to_df(ds_list, model_list,metrics_dict )
+    def __init__(self, results_dict, anomaly_list=["normal", "push", "wrench"]):
+        model_list = self.get_model_list(results_dict)
+        aggr_dict =  self.aggregate_results(results_dict, model_list, anomaly_list)
+        metrics_dict = self.calc_metrics(aggr_dict)
+        anom_dict = self.label_anomalies(aggr_dict, metrics_dict)
+        statistics_dict = self.calc_statistics_per_joint(anom_dict)
+        self.df = self.to_df(anomaly_list, model_list, statistics_dict)
 
-    def aggregate_results(self, results_dict, anomaly_list, seed=42):
+    def get_model_list(self, results_dict):
+        models = set()
+        for key in results_dict.keys():
+            main_type = key.rsplit("_")[0]
+            models.add(main_type)
+        return list(models)
+
+    def aggregate_results(self, results_dict, model_list, anomaly_list):
         aggr_dict = {}
 
-        for key in results_dict:
-            if str(seed) in key:
-                aggr_dict[key] = {}
-                for anomaly in anomaly_list:
-                    aggr_dict[key][anomaly] = {}
-                    results_model = []
+        for model in model_list:
+            aggr_dict[model] = {}
+            for key in results_dict:
+                if model in key:
+                    for anom in anomaly_list:
+                        entry_ind = results_dict[key][anom + "_ind"]
+                        #entry_mean = results_dict[key][anom + "_mean"]
 
-                    for elem in results_dict[key][anomaly + "_ind"]:
-                        res_arr = np.array(elem)
-                        if "_e" in key: res_arr = np.delete(res_arr, 0, axis=0)
+                        nan_indices_ind = [(i, j) for i, sublist in enumerate(entry_ind) for j, value in enumerate(sublist) if math.isnan(value)]
+                        #nan_indices_mean = [index for index, value in enumerate(entry_mean) if math.isnan(value)]
 
-                        results_model.append(res_arr)
+                        if nan_indices_ind:# or nan_indices_mean:
+                            continue
 
-                    aggr_dict[key][anomaly]["mean"] = np.mean(np.vstack(results_model), axis=0)
-                    aggr_dict[key][anomaly]["var"] = np.var(np.vstack(results_model), axis=0)
-                    aggr_dict[key][anomaly]["std"] = np.std(np.vstack(results_model), axis=0)
+                        if anom not in aggr_dict[model]:
+                            aggr_dict[model][anom] = entry_ind
+                            #aggr_dict[model][anom + "_mean"] = entry_mean
+                        else:
+                            aggr_dict[model][anom].extend(entry_ind)
+                            #aggr_dict[model][anom + "_mean"].extend(entry_mean)
         return aggr_dict
 
-    def label_anomalies(self, results_dict, anomaly_list, seed=42):
-        anom_dict = {}
-        aggr_dict = self.aggregate_results(results_dict, anomaly_list, seed)
-
-        for key in results_dict:
-            if str(seed) in key:
-                anom_dict[key[:-8]] = {}
-                for anomaly in anomaly_list:
-                    case_list = []
-                    res_list = results_dict[key][anomaly + "_ind"]
-
-                    for res in res_list:
-                        if "_e" in key: res = res[1:]
-
-                        anom_list = []
-                        normal_mean = aggr_dict[key]["normal"]["mean"]
-                        normal_std = aggr_dict[key]["normal"]["std"]
-
-                        for elem, norm_mean, norm_std in zip(res, normal_mean, normal_std):
-                            if (norm_mean - 1 * norm_std) < elem > (norm_mean + 1 * norm_std):
-                                anom_list.append(1)
-                            else:
-                                anom_list.append(0)
-                        case_list.append(anom_list)
-                    anom_dict[key[:-8]][anomaly] = case_list
-        return anom_dict
-
-    def calc_metrics(self, anom_dict):
+    def calc_metrics(self, aggr_dict):
         metrics_dict = {}
-        for key in anom_dict:
-            metrics_dict[key] = {}
-            for anomaly in anom_dict[key]:
-                metrics_dict[key][anomaly] = {}
-                pred = np.array(anom_dict[key][anomaly])
-                pred = pred.T
+        for model in aggr_dict:
+            results = np.array(aggr_dict[model]["normal"])
 
-                if "normal" in anomaly:
-                    gt = np.zeros(pred.shape)
-                else:
-                    gt = np.zeros(pred.shape)
-                    gt[:3, :] = 1
+            mean = np.mean(results, axis=0)
+            std = np.std(results, axis=0)
+            var = np.var(results, axis=0)
 
-                i = 0
-                for elem_gt, elem_pred in zip(gt, pred):
-                    m = Metrics(elem_gt, elem_pred)
-                    metrics_dict[key][anomaly][i] = m.return_metrics()
-                    i += 1
-
+            metrics_dict[model] = {"mean": mean, "std": std, "var": var}
         return metrics_dict
 
-    def to_df(self, ds_list, model_list, metrics_dict):
+    def label_anomalies(self, aggr_dict, metrics_dict):
+        anom_dict = {}
+
+        for model in aggr_dict.keys():
+            anom_dict[model] = {}
+
+            normal_mean = metrics_dict[model]["mean"]
+            normal_std = metrics_dict[model]["std"]
+
+            for anomaly in aggr_dict[model]:
+                anom_dict[model][anomaly] = {}
+
+                elem_wise_list, anom_list = [], []
+                for result in aggr_dict[model][anomaly]:
+
+                    elem_list, anom = [], 0
+                    for mean_pred, mean_gt, std_gt in zip(result, normal_mean, normal_std):
+                        if (mean_gt - 2 * std_gt) < mean_pred > (mean_gt + 2 * std_gt):
+                            elem_list.append(1)
+                            anom = 1
+                        else:
+                            elem_list.append(0)
+
+                        elem_wise_list.append(elem_list)
+                    anom_list.append(anom)
+
+                anom_dict[model][anomaly] = {"per_joint": elem_wise_list}
+        return anom_dict
+
+    def calc_statistics_per_joint(self, anom_dict):
+        stats_dict = {}
+        case_dict = {"push": [1,1,1,0,0,0],
+                    "wrench": [0,0,0,0,0,1]}
+
+        for model in anom_dict:
+            stats_dict[model] = {}
+            for anomaly in anom_dict[model]:
+                if anomaly == "normal":
+                    continue
+                else:
+                    stats_dict[model][anomaly] = {}
+                    pred_ind = np.array(anom_dict[model][anomaly]["per_joint"])
+                    case_pattern = np.array(case_dict[anomaly])
+                    gt_ind = np.repeat(case_pattern[np.newaxis, :], pred_ind.shape[0], axis=0)
+
+                    for joint in range(pred_ind.shape[1]):
+                        slice_pred = pred_ind[:, joint:joint+1]
+                        slice_gt = gt_ind[:, joint:joint+1]
+
+                        m_ind = Metrics(slice_gt, slice_pred)
+                        stats_dict[model][anomaly]["joint_" + str(joint)] = {"sensitivity": m_ind.sensitivity, "specificity": m_ind.specificity, "precision": m_ind.precision,"recall": m_ind.recall, "accuracy": m_ind.accuracy, "f1_score": m_ind.f1_score}
+        return stats_dict
+
+    def to_df(self, anomaly_list, model_list, stats_dict):
         df = pd.DataFrame()
 
-        for ds in ds_list:
+        for anomaly in anomaly_list:
+            if anomaly == "normal":
+                continue
             for model in model_list:
                 for joint in range(0,6):
-                    #df.at[model, str(joint) + ds] = metrics_dict[model + ds][joint]["sensitivity"]
-                    #df.at[model, str(joint) + ds] = metrics_dict[model + ds][joint]["specificity"]
-                    #df.at[model, str(joint) + ds] = metrics_dict[model + ds][joint]["precision"]
-                    #df.at[model, str(joint) + ds] = metrics_dict[model + ds][joint]["recall"]
-                    #df.at[model, str(joint) + ds] = metrics_dict[model + ds][joint]["f1_score"]
-                    df.at[model, "j_" + str(joint) + ds] = metrics_dict[model + ds]["push"][joint]["accuracy"]
+                    df.at[anomaly + " joint_" + str(joint), model + " accuracy"] = stats_dict[model][anomaly]["joint_" + str(joint)]["accuracy"]
+                    df.at[anomaly + " joint_" + str(joint), model + " f1_score"] = stats_dict[model][anomaly]["joint_" + str(joint)]["f1_score"]
+                    df.at[anomaly + " joint_" + str(joint), model + " sensitivity"] = stats_dict[model][anomaly]["joint_" + str(joint)]["sensitivity"]
+                    df.at[anomaly + " joint_" + str(joint), model + " specificity"] = stats_dict[model][anomaly]["joint_" + str(joint)]["specificity"]
+
         return df
 
+
+def make_latex_table(df, decimals=4):
+    tab = df.round(decimals).style.format("{:." + str(decimals) + "f}")
+    return tab.to_latex()
 
 
 
 # Quickrun
 if __name__ == "__main__":
     MODEL_LIST = ["MonolithAE", "MonolithVAE", "Modular0AE", "Modular0VAE", "Modular1AE", "Modular1VAE", "Modular2AE",
-                  "Modular2VAE"]
+                  "Modular2VAE",  "Modular3AE", "Modular3VAE"]
     CASES = ["normal", "weight", "drop", "stop", "out", "push", "speed", "wrench"]
-    DS_LIST = ["_e", "_p"]
     EVAL_PATH = "../logs/repl_studies/logs/train/"  # "../logs_test/logs/"
 
-    RESULTS = ImportResults(path=EVAL_PATH, model_list=MODEL_LIST, ds_list=DS_LIST, anomaly_list=CASES)
+    print("LOADING DATA\n", 50*"=")
+    RESULTS = ImportResults(path=EVAL_PATH, model_list=MODEL_LIST, anomaly_list=CASES)
 
-    h1_res = H1(results_dict=RESULTS.glob_res, model_list=MODEL_LIST, ds_list=DS_LIST)
-    #h1_res.df_files
+    print("\n\nH1\n", 50*"=")
+    h1_res = H1(results_dict=RESULTS.glob_res)
+    print(h1_res.df_files)
+    print(h1_res.df_joints)
 
-    h2_res = H2(results_dict=RESULTS.glob_res, model_list=MODEL_LIST, ds_list=DS_LIST, anomaly_list=CASES)
-    #h2_res.df_files
+    print("\n\nH2\n", 50*"=")
+    h2_res = H2(results_dict=RESULTS.glob_res, anomaly_list=CASES)
+    print(h2_res.df_model)
+    print(h2_res.df_anomaly)
 
-    h3_res = H3(results_dict=RESULTS.glob_res, model_list=MODEL_LIST, ds_list=DS_LIST, anomaly_list=CASES)
-    h3_res.df
+    print("\n\nH3\n", 50*"=")
+    h3_res = H3(results_dict=RESULTS.glob_res)
+    print(h3_res.df)

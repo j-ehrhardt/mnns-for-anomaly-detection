@@ -5,7 +5,7 @@ class AE_Encoder(nn.Module):
     def __init__(self, hparam, in_):
         super(AE_Encoder, self).__init__()
         self.in_ = in_
-        self.act = nn.LeakyReLU(negative_slope=0.2)
+        self.act = torch.nn.SELU()
         self.dropout = nn.Dropout(p=hparam["DROPOUT_P"], inplace=True)
 
         layers = []
@@ -28,7 +28,7 @@ class AE_Decoder(nn.Module):
     def __init__(self, hparam, lat_, out_):
         super(AE_Decoder, self).__init__()
 
-        self.act = nn.LeakyReLU(negative_slope=0.2)
+        self.act = torch.nn.SELU()
         self.dropout = nn.Dropout(p=hparam["DROPOUT_P"])
 
         layers = []
@@ -47,7 +47,7 @@ class VAE_Encoder(nn.Module):
     def __init__(self, hparam, in_):
         super(VAE_Encoder, self).__init__()
         self.in_ = in_
-        self.act = nn.LeakyReLU(negative_slope=0.2)
+        self.act = torch.nn.SELU()
         self.dropout = nn.Dropout(p=hparam["DROPOUT_P"], inplace=True)
 
         self.N = torch.distributions.Normal(0,1)
@@ -81,7 +81,7 @@ class VAE_Decoder(nn.Module):
     def __init__(self, hparam, lat_, out_):
         super(VAE_Decoder, self).__init__()
 
-        self.act = nn.LeakyReLU(negative_slope=0.2)
+        self.act = torch.nn.SELU()
         self.dropout = nn.Dropout(p=hparam["DROPOUT_P"])
 
         layers = []

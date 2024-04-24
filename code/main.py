@@ -20,7 +20,7 @@ class hparam_search():
         torch.cuda.manual_seed(hparam["SEED"])
 
         self.study = optuna.create_study(direction="minimize", storage="sqlite:///" + hparam["LOG_DIR"] + "hparam_studies" + ".db", study_name=hparam["MODEL"], load_if_exists=True, pruner=True)
-        self.study.optimize(self.experimental_run, n_trials=20)
+        self.study.optimize(self.experimental_run, n_trials=32)
 
     def experimental_run(self, trial):
         # setup
@@ -28,7 +28,7 @@ class hparam_search():
 
         # parameters for forward models
         if "VAE" in self.hparam["MODEL"]:
-            self.hparam["N_LAYERS"] = trial.suggest_int("n_layers", 2, 8)
+            self.hparam["N_LAYERS"] = trial.suggest_int("n_layers", 2, 4)
             self.hparam["AE_F_ENCODING"] = trial.suggest_float("ae_f_encoding", 0.5, 4.0)
             self.hparam["DROPOUT_P"] = trial.suggest_float("dropout_p", 0.0, 0.5)
             # training parameters
@@ -37,7 +37,7 @@ class hparam_search():
             self.hparam["WEIGHT_DECAY"] = trial.suggest_float("weight_decay", 0.0, 0.0001)
 
         if "AE" in self.hparam["MODEL"] and "VAE" not in self.hparam["MODEL"]:
-            self.hparam["N_LAYERS"] = trial.suggest_int("n_layers", 2, 8)
+            self.hparam["N_LAYERS"] = trial.suggest_int("n_layers", 2, 4)
             self.hparam["AE_F_ENCODING"] = trial.suggest_float("ae_f_encoding", 0.5, 4.0)
             self.hparam["DROPOUT_P"] = trial.suggest_float("dropout_p", 0.0, 0.5)
             # training parameters
@@ -47,8 +47,8 @@ class hparam_search():
 
         # parameters for recurrent models
         if "AE" not in self.hparam["MODEL"]:
-            n_hidden_sizes = trial.suggest_int("hidden_layer_factor", 1 ,8)
-            hidden_sizes = trial.suggest_categorical("hidden_sizes_l", ["16", "32", "64", "128", "256", "512"])
+            n_hidden_sizes = trial.suggest_int("hidden_layer_factor", 1 ,4)
+            hidden_sizes = trial.suggest_categorical("hidden_sizes_l", [16, 32, 64, 128, 256]) # ["16", "32", "64", "128", "256", "512"])
             self.hparam["HIDDEN_SIZES"] = [int(hidden_sizes)] * n_hidden_sizes
             self.hparam["LATENT_SIZE"] = trial.suggest_int("latent_size", 16, 1024)
             # training parameters
@@ -69,7 +69,7 @@ class replication_study():
     Rerun the best-performing experiments on 5 different seeds to proof replicability
     """
     def __init__(self, hparam):
-        seeds = [42, 21, 13, 4, 29]
+        seeds = [42, 21, 13, 4, 29, 32, 11, 3]
 
         for seed in seeds:
             random.seed(seed)
@@ -98,7 +98,7 @@ class evaluation_study():
     All evaluations and print them into the evaluation script.
     """
     def __init__(self, hparam):
-        seeds = [42, 21, 13, 4, 29]
+        seeds = [42, 21, 13, 4, 29, 32, 11, 3]
         hparam["LOG_DIR"] = "../exp/logs/repl_studies/"
 
         for seed in seeds:
@@ -128,13 +128,12 @@ def load_experiments(path="../exp/exp_setup/experiments.json"):
 
 
 
-
 # Quickrun
 if __name__ == "__main__":
 
     device = sys.argv[1]                            # device number (int)
     print(f"Experiments {sys.argv[2:]} will be conducted on device {sys.argv[1]}")
-
+    
     # for click and replicate:
     exps = load_experiments()
     for model_index in sys.argv[2:]:
@@ -150,9 +149,7 @@ if __name__ == "__main__":
         exp["DEVICE"] = int(device)
         replication_study(exp)
         evaluation_study(exp)
-
-
-
+    """ """
     """
     # for hyperparameter search only
     exps = load_experiments()
@@ -162,7 +159,7 @@ if __name__ == "__main__":
         hparam_search(exp)
     """
 
-    """
+    """ 
     # for replication studies + evaluation study only
     exps = load_experiments(path="../exp/exp_setup/best_runs.json")
     for model_index in sys.argv[2:]:    # experiment numbers (int)

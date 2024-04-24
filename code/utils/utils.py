@@ -45,7 +45,7 @@ def save_results(hparam: dict, metrics: dict, log_dir: str, modus: str):
     """
     results = {"setup": hparam, str(modus):metrics}
 
-    print(results)
+    #print(results)
 
     with open(log_dir + "/results.json", "w") as handle:
         json.dump(results, handle, indent=4)
