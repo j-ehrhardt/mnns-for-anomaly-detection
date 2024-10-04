@@ -1,7 +1,7 @@
-![Python](https://img.shields.io/badge/python-3670A0?style=for-the-badge&logo=python&logoColor=ffdd54)
-![Anaconda](https://img.shields.io/badge/Anaconda-%2344A833.svg?style=for-the-badge&logo=anaconda&logoColor=white)
-![PyTorch](https://img.shields.io/badge/PyTorch-%23EE4C2C.svg?style=for-the-badge&logo=PyTorch&logoColor=white)
-<!-- ![ResearchGate](https://img.shields.io/badge/ResearchGate-00CCBB?style=for-the-badge&logo=ResearchGate&logoColor=white) -->
+[![Python Version](https://img.shields.io/badge/python-3.12%2B-brightgreen.svg)](https://www.python.org/downloads/release/python-380/)
+[![Mamba](https://img.shields.io/badge/Mamba-1.5.8-green)](https://mamba.readthedocs.io)
+[![PyTorch](https://img.shields.io/badge/PyTorch-2.3.0-red)](https://pytorch.org/)
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 
 # Modular Neural Networks for Anomaly Detection in Cyber-Physical Systems
@@ -26,7 +26,7 @@ For further information, we recommend you to read our [publication(#citation)].
 We recommend Anaconda to install all requirements for our repository.
 The requirements are saved in the `venv.yml` file. 
 
-For a quick installation run: `conda env create -f venv.yml`
+For a quick installation run: `mamba env create -f venv.yml`
 
 ## Replication
 
