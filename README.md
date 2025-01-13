@@ -47,11 +47,14 @@ You can run your own studies by uncommenting the suitable codeblock in the `main
 When using this work, please cite: 
 
 ```
-@inproceedings{Ehrhardt2024,
-    title={Using Modular Neural Networks for Anomaly Detection in Cyber-Physical Systems},
-    author={Ehrhardt, Jonas and Overlöper, Phillip and Vranjes, Daniel and Steude, Henrik and Diedrich, Alexander and Niggemann, Oliver},
-    year={2024},
-}
+@INPROCEEDINGS{Ehrhardt2024
+  author={Ehrhardt, Jonas and Overlöper, Phillip and Vranjes, Daniel and Steude, Henrik and Diedrich, Alexander and Niggemann, Oliver},
+  booktitle={2024 IEEE 29th International Conference on Emerging Technologies and Factory Automation (ETFA)}, 
+  title={Using Modular Neural Networks for Anomaly Detection in Cyber-Physical Systems}, 
+  year={2024},
+  pages={01-07},
+  keywords={Correlation;Knowledge based systems;Machine learning;Predictive models;Cyber-physical systems;Industrial robots;Data models;Anomaly detection;Manufacturing automation;Multi-layer neural network;Anomaly Detection;Modular Neural Networks;Cyber- Physical System;Industrial Robot},
+  doi={10.1109/ETFA61755.2024.10711115}}
 ```
 
 ## LICENSE
