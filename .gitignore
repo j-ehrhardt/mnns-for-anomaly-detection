@@ -2,3 +2,6 @@
 data/dataset
 exp/logs
 
+*.h5
+*.zip
+*.pdf
